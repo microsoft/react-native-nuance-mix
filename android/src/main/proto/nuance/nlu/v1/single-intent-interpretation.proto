@@ -1,0 +1,58 @@
+/**
+ * This is one of five proto files that define the services and
+ * messages to request interpretation from NLU as a Service and return
+ * a result. This file defines the structure of a single-intent
+ * interpretation.
+ */
+
+syntax = "proto3";
+
+package nuance.nlu.v1;
+
+import "nuance/nlu/v1/interpretation-common.proto";
+import "google/protobuf/struct.proto";
+import "google/protobuf/any.proto";
+
+option java_multiple_files = true;
+option java_package = "com.nuance.grpc.nlu.v1";
+option java_outer_classname = "SingleIntentInterpretationProto";
+
+/**
+ * Single-intent interpretation. Included in [Interpretation](#interpretation).
+ */
+message SingleIntentInterpretation {
+    string intent = 2;                                // Intent name, as specified in the semantic model.
+    float confidence = 3;                             // Confidence score (between 0.0 and 1.0 inclusive). The higher the score, the likelier the detected intent is correct.
+    EnumOrigin origin = 4;                            // How the intent was detected.
+    map<string, SingleIntentEntityList> entities = 5; // Map of entity names to lists of entities.
+    map<string, google.protobuf.Any> metadata = 13;   // Optional metadata attached to this interpretation. For internal use only.
+}
+
+/*
+ * List of entities.  Included in
+ * [SingleIntentInterpretation](#singleintentinterpretation).
+ */
+message SingleIntentEntityList {
+    repeated SingleIntentEntity entities = 1;         // Repeated. An entity match for the intent, for single-intent interpretation.
+}
+
+/*
+ * Entity in the intent. Included in
+ * [SingleIntentEntityList](#singleintententitylist).
+ */
+message SingleIntentEntity {
+    TextRange text_range = 1;                         // Range of literal text for which this entity applies.
+    float confidence = 3;                             // Confidence score between 0.0 and 1.0 inclusive. The higher the score, the likelier the entity detection is correct.
+    EnumOrigin origin = 4;                            // How the entity was detected.
+    map<string, SingleIntentEntityList> entities = 5; // For hierarchical entities, the child entities of the entity.
+    oneof value_union {
+        string string_value = 6;                      // The canonical value as a string.
+        google.protobuf.Struct struct_value = 7;      // The entity value as an object. This object may be directly converted to a JSON representation.
+    }
+    string literal = 8;                               // The input literal associated with this entity.
+    bool sensitive = 9;                               // Indicates whether the entity has been flagged as sensitive.
+    string formatted_literal = 11;                    // The input formatted literal associated with this entity. When InterpretationInput is text, it's the same as literal.
+    TextRange formatted_text_range = 12;              // Range of the formatted literal text this entity applies to. When InterpretationInput is ASR result, it can be missing in misalignments cases.
+    map<string, google.protobuf.Any> metadata = 13;   // Optional metadata attached to this entity. For internal use only.
+    AudioRange audio_range = 15;                      // Range of audio input this entity applies to. Available only when interpreting a recognition result from ASR as a Service.
+}

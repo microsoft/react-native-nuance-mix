@@ -1,0 +1,344 @@
+//  Copyright (C) 2018 - 2021 Nuance Communications, Inc. All Rights Reserved.
+//
+//  The copyright to the computer program(s) herein is the property of
+//  Nuance Communications, Inc. The program(s) may be used and/or copied
+//  only with the written permission from Nuance Communications, Inc.
+//  or in accordance with the terms and conditions stipulated in the
+//  agreement/contract under which the program(s) have been supplied.
+
+syntax = "proto3";
+
+package nuance.tts.v1;
+
+//option java_package = "com.nuance.rpc.tts.v1";
+//option java_outer_classname = "SynthesizerProto";
+
+/*
+The Synthesizer service offers these functionalities:
+* - GetVoices: Queries the list of available voices, with filters to reduce the search space.  
+* - Synthesize: Synthesizes audio from input text and parameters, and returns an audio stream. 
+* - UnarySynthesize: Synthesizes audio from input text and parameters, and returns a single audio response. 
+*/
+service Synthesizer {
+  rpc GetVoices(GetVoicesRequest) returns (GetVoicesResponse) {}         
+  rpc Synthesize(SynthesisRequest) returns (stream SynthesisResponse) {} 
+  rpc UnarySynthesize(SynthesisRequest) returns (UnarySynthesisResponse) {}
+}
+
+/*
+Input message for [Synthesizer](#synthesizer) - GetVoices, to query voices available to the client.
+*/
+message GetVoicesRequest { 
+  Voice voice = 1; // Optionally filter the voices to retrieve, e.g. set language to en-US to return only American English voices.
+}
+
+/*
+Output message for [Synthesizer](#synthesizer) - GetVoices. Includes a list of voices that matched the input criteria, if any.
+*/
+message GetVoicesResponse { 
+  repeated Voice voices = 1;           // Repeated. Voices and characteristics returned.
+}
+
+/*
+Input message for [Synthesizer](#synthesizer) - Synthesize. Specifies input text, audio parameters, and events to subscribe to, in exchange for synthesized audio.
+*/
+message SynthesisRequest {
+  Voice voice = 1;                     // The voice to use for audio synthesis. Mandatory.
+  AudioParameters audio_params = 2;    // Output audio parameters, such as encoding and volume.
+  Input input = 3;                     // Input text to synthesize, tuning data, etc. Mandatory.
+  EventParameters event_params = 4;    // Markers and other info to include in server events returned during synthesis.
+  map<string, string> client_data = 5; // Repeated. Client-supplied key-value pairs to inject into the call log.
+  string user_id = 6;                  // Identifies a particular user within an application.
+}
+
+/*
+Input or output message for voices. When sent as input: 
+* - In [GetVoicesRequest](#getvoicesrequest), it filters the list of available voices.
+* - In [SynthesisRequest](#synthesisrequest), it specifies the voice to use for synthesis. 
+
+When received as output in [GetVoicesResponse](#getvoicesresponse), it returns the list of available voices.
+*/
+message Voice {
+  string name = 1;            // The voice's name, e.g. 'Evan'. Mandatory for SynthesisRequest. 
+  string model = 2;           // The voice's quality model, e.g. 'enhanced' or 'standard'. Mandatory for SynthesisRequest. 
+  string language = 3;        // IETF language code, e.g. 'en-US'. Used only for GetVoicesRequest and GetVoicesResponse, to search for voices with a certain mother tongue. Ignored otherwise. 
+  EnumAgeGroup age_group = 4; // Used only for GetVoicesRequest and GetVoicesResponse, to search for adult or child voices. Ignored otherwise.
+  EnumGender gender = 5;      // Used only for GetVoicesRequest and GetVoicesResponse, to search for voices with a certain gender. Ignored otherwise.
+  uint32 sample_rate_hz = 6;  // Used only for GetVoicesRequest and GetVoicesResponse, to search for a certain native sample rate. Ignored otherwise.
+  string language_tlw = 7;    // Used only for GetVoicesRequest and GetVoicesResponse. Three-letter language code (e.g. 'enu' for American English), for configuring language identification in [Input](#input).
+  bool restricted = 8;        // Used only in GetVoicesResponse, to identify restricted voices. These are custom voices available only to specific customers. Ignored otherwise.
+  string version = 9;         // Used only in GetVoicesResponse, to return the voice's version. Ignored otherwise.
+  repeated string foreign_languages = 10; // Used only in GetVoicesResponse, to return the foreign languages of a multilingual voice.
+}
+
+/*
+Input or output field specifying whether the voice uses its adult or child version, if available. Included in [Voice](#voice). 
+*/
+enum EnumAgeGroup { 
+  ADULT = 0;      // Adult voice. Default for GetVoicesRequest.
+  CHILD = 1;      // Child voice. 
+}
+
+/*
+Input or output field, specifying gender for voices that support multiple genders. Included in [Voice](#voice). 
+*/
+enum EnumGender { 
+  ANY = 0;        // Any gender voice. Default for GetVoicesRequest. 
+  MALE = 1;       // Male voice.
+  FEMALE = 2;     // Female voice.
+  NEUTRAL = 3;    // Neutral gender voice. 
+}
+
+/*
+Input message for audio-related parameters during synthesis, including encoding, volume, and audio length. Included in [SynthesisRequest](#synthesisrequest). 
+*/
+message AudioParameters {
+  AudioFormat audio_format = 1;        // Audio encoding. Default PCM 22.5kHz. 
+  uint32 volume_percentage = 2;        // Volume amplitude, from 0 to 100. Default 80.
+  float speaking_rate_factor = 3;      // Speaking rate, from 0 to 2.0. Default 1.0.
+  uint32 audio_chunk_duration_ms = 4;  // Maximum duration, in ms, of an audio chunk delivered to the client, from 1 to 60000. Default is 20000 (20 seconds). When this parameter is large enough (for example, 20 or 30 seconds), each audio chunk contains an audible segment surrounded by silence.
+  uint32 target_audio_length_ms = 5;   // Maximum duration, in ms, of synthesized audio. When greater than 0, the server stops ongoing synthesis at the first sentence end, or silence, closest to the value.
+  bool disable_early_emission = 6;     // By default, audio segments are emitted as soon as possible, even if they are not audible. This behavior may be disabled.
+}
+
+/*
+Input message for audio encoding of synthesized text. Included in [AudioParameters](#audioparameters). 
+*/
+message AudioFormat {
+  oneof audio_format {
+    PCM pcm = 1;          // Signed 16-bit little endian PCM. 
+    ALaw alaw = 2;        // G.711 A-law, 8kHz.
+    ULaw ulaw = 3;        // G.711 Mu-law, 8kHz.
+    OggOpus ogg_opus = 4; // Ogg Opus, 8kHz, 16kHz or 24kHz.
+    Opus opus = 5;        // Opus, 8kHz, 16kHZ or 24 kHz. The audio will be sent one Opus packet at a time.
+  }
+}
+
+/* 
+Input message defining PCM sample rate. Included in [Audioformat](#audioformat).
+*/
+message PCM { 
+  uint32 sample_rate_hz = 1; // Output sample rate: 8000, 11025, 16000, 22050, 24000.
+}
+
+/*
+Input message defining A-law audio format. G.711 audio formats are set to 8kHz. Included in [Audioformat](#audioformat).
+*/
+message ALaw {}
+
+/*
+Input message defining Mu-law audio format. G.711 audio formats are set to 8kHz. Included in [Audioformat](#audioformat).
+*/
+message ULaw {}
+
+/*
+Input message defining Opus output rate. Included in [Audioformat](#audioformat).
+*/
+message Opus {
+  uint32 sample_rate_hz = 1;       // Output sample rate. Supported values: 8000, 16000, 24000 Hz. 
+  uint32 bit_rate_bps = 2;         // Valid range is 500 to 256000 bps. Default 28000 bps.
+  float max_frame_duration_ms = 3; // Opus frame size, in ms: 2.5, 5, 10, 20, 40, 60. Default 20.
+  uint32 complexity = 4;           // Computational complexity. A complexity of 0 means the codec default.
+  EnumVariableBitrate vbr = 5;     // Variable bitrate. On by default. 
+}
+
+/*
+Input message defining Ogg Opus output rate. Included in [Audioformat](#audioformat).
+*/
+message OggOpus {
+  uint32 sample_rate_hz = 1;       // Output sample rate. Supported values: 8000, 16000, 24000 Hz. 
+  uint32 bit_rate_bps = 2;         // Valid range is 500 to 256000 bps. Default 28000 bps.
+  float max_frame_duration_ms = 3; // Opus frame size, in ms: 2.5, 5, 10, 20, 40, 60. Default 20.
+  uint32 complexity = 4;           // Computational complexity. A complexity of 0 means the codec default.
+  EnumVariableBitrate vbr = 5;     // Variable bitrate. On by default. 
+}
+
+/*
+Settings for variable bitrate. Included in [OggOpus](#oggopus). Turned on by default.
+*/
+enum EnumVariableBitrate { 
+  VARIABLE_BITRATE_ON = 0;          // Use variable bitrate. Default. 
+  VARIABLE_BITRATE_OFF = 1;         // Do not use variable bitrate. 
+  VARIABLE_BITRATE_CONSTRAINED = 2; // Use constrained variable bitrate. 
+}
+
+/*
+Input message containing text to synthesize and synthesis parameters, including tuning data, etc. Included in [SynthesisRequest](#synthesisrequest). The type of input may be:
+* - Plain text.
+* - An SSML document.
+* - An alternating sequence of plain text and Nuance control codes.
+*/
+message Input {
+  oneof input_data {
+    Text text = 1;                            // Text input.  
+    SSML ssml = 2;                            // SSML input.
+    TokenizedSequence tokenized_sequence = 3; // Sequence of text and Nuance control codes.
+  }
+  repeated SynthesisResource resources = 4;        // Repeated. Synthesis resources (user dictionaries, rulesets, etc.) to tune synthesized audio. 
+  LanguageIdentificationParameters lid_params = 5; // LID parameters.  
+  DownloadParameters download_params = 6;          // Remote file download parameters.  
+}
+
+/*
+Input message for synthesizing plain text. The encoding must be in UTF-8.
+*/
+message Text {
+  oneof text_data {
+    string text = 1; // Plain input text in UTF-8 encoding.
+    string uri = 2;  // Remote URI to the plain input text. Disabled for Nuance-hosted TTS.
+  }
+}
+
+/*
+Input message for synthesizing an SSML document.
+*/
+message SSML {
+  oneof ssml_data {
+    string text = 1; // SSML input text.
+    string uri = 2;  // Remote URI to the SSML input text. Disabled for Nuance-hosted TTS.
+  }
+  EnumSSMLValidationMode ssml_validation_mode = 3;  // SSML validation mode. Default STRICT. 
+}
+
+/*
+Input message for synthesizing a sequence of plain text and Nuance control codes.
+*/
+message TokenizedSequence {
+  repeated Token tokens = 1;
+}
+
+/*
+The unit when using TokenizedSequence for input. Each token can either be plain text or a Nuance control code.
+*/
+message Token {
+  oneof token_data {
+    string text = 1; // Plain input text.
+    ControlCode control_code = 2; // Nuance control code.
+  }
+}
+
+/*
+A Nuance control code allows the user to control how text is spoken, similarly to SSML.
+*/
+message ControlCode {
+  string key = 1; // Name of the control code, e.g. "pause".
+  string value = 2; // Value of the control code.
+}
+
+/*
+Input message specifying the type of file to tune the synthesized output and its location or contents. Included in [Input](#input). 
+*/
+message SynthesisResource {
+  EnumResourceType type = 1;   // Resource type, e.g. user dictionary, etc. Default USER_DICTIONARY. 
+  oneof resource_data {
+    string uri = 2;            // URI to the remote resource, or
+    bytes body = 3;            // For EnumResourceType USER_DICTIONARY, the contents of the file.
+  }
+}
+
+/*
+The type of synthesis resource to tune the output. Included in [SynthesisResource](#synthesisresource). User dictionaries provide custom pronunciations, rulesets apply search-and-replace rules to input text and ActivePrompt databases help tune synthesized audio under certain conditions, using Nuance Vocalizer Studio. 
+*/
+enum EnumResourceType {
+  USER_DICTIONARY = 0;       // User dictionary (application/edct-bin-dictionary). Default. 
+  TEXT_USER_RULESET = 1;     // Text user ruleset (application/x-vocalizer-rettt+text).
+  BINARY_USER_RULESET = 2;   // Not supported. Binary user ruleset (application/x-vocalizer-rettt+bin).
+  ACTIVEPROMPT_DB = 3;       // ActivePrompt database (application/x-vocalizer-activeprompt-db).
+  ACTIVEPROMPT_DB_AUTO = 4;  // ActivePrompt database with automatic insertion (application/x-vocalizer-activeprompt-db;mode=automatic).
+  SYSTEM_DICTIONARY = 5;     // Nuance system dictionary (application/sdct-bin-dictionary).
+}
+
+/*
+SSML validation mode when using SSML input. Included in [Input](#input). Strict by default but can be relaxed.
+*/
+enum EnumSSMLValidationMode { 
+  STRICT = 0;   // Strict SSL validation. Default. 
+  WARN = 1;     // Give warning only. 
+  NONE = 2;     // Do not validate. 
+}
+
+/*
+Input message controlling the language identifier. Included in [Input](#input). The language identifier runs on input blocks labeled with the <ESC>\lang=unknown\ control sequence or SSML xml:lang="unknown". The language identifier automatically restricts the matched languages to the installed voices. This limits the permissible languages, and also sets the order of precedence (first to last) when they have equal confidence scores.
+*/
+message LanguageIdentificationParameters {
+  bool disable = 1;                       // Whether to disable language identification. Turned on by default. 
+  repeated string languages = 2;          // Repeated. List of three-letter language codes (e.g. enu, frc, spm) to restrict language identification results, in order of precedence. Use GetVoicesRequest - Voice - language_tlw to obtain the three-letter codes. Default blank. 
+  bool always_use_highest_confidence = 3; // If enabled, language identification always chooses the language with the highest confidence score, even if the score is low. Default false, meaning use language with any confidence.
+}
+
+/*
+Input message containing parameters for remote file download, whether for input text (Input.uri) or a SynthesisResource (SynthesisResource.uri). Included in [Input](#input). 
+*/
+message DownloadParameters {
+  map <string,string> headers = 1; // HTTP headers to include in outgoing requests. Only whitelisted headers will actually be sent.
+  bool refuse_cookies = 2;         // Whether to disable cookies. By default, HTTP requests accept cookies.
+  oneof optional_download_parameter_request_timeout_ms {
+    uint32 request_timeout_ms = 3; // Request timeout in ms. Default (0) means server default, usually 30000 (30 seconds).
+  }
+}
+
+/*
+Input message that defines event subscription parameters. Included in [SynthesisRequest](#synthesisrequest). Events that are requested are sent throughout the SynthesisResponse stream, when generated.  Marker events can send events as certain parts of the synthesized audio are reached, for example, at the end of a word, sentence, or user-defined bookmark.
+
+* Log events are produced throughout a synthesis request for events such as a voice loaded by the server or an audio chunk being ready to send.
+*/
+message EventParameters {
+  bool send_sentence_marker_events = 1;   // Sentence marker. Default: do not send. 
+  bool send_word_marker_events = 2;       // Word marker. Default: do not send. 
+  bool send_phoneme_marker_events = 3;    // Phoneme marker. Default: do not send. 
+  bool send_bookmark_marker_events = 4;   // Bookmark marker. Default: do not send. 
+  bool send_paragraph_marker_events = 5;  // Paragraph marker. Default: do not send. 
+  bool send_visemes = 6;                  // Lipsync information. Default: do not send. 
+  bool send_log_events = 7;               // Whether to log events during synthesis. By default, logging is turned off.
+  bool suppress_input = 8;                // Whether to omit input text and URIs from log events. By default, these items are included.
+}
+
+/*
+The [Synthesizer](#synthesizer) - Synthesize RPC call returns a stream of SynthesisResponse messages. The response contains one of: 
+* - A status response, indicating completion or failure of the request. This is received only once and signifies the end of a Synthesize call.
+* - A list of events the client has requested. This can be received many times. See EventParameters for details.
+* - An audio buffer. This may be received many times.
+*/
+message SynthesisResponse {
+  oneof response {
+    Status status = 1;   // A status response, indicating completion or failure of the request.
+    Events events = 2;   // A list of events. See EventParameters for details.
+    bytes audio = 3;     // The latest audio buffer.
+  }
+}
+
+/*
+The [Synthesizer](#synthesizer) - UnarySynthesize RPC call returns a single UnarySynthesisResponse message. It is similar to a SynthesisResponse message but includes all the information instead of a single type of response. The response contains: 
+* - A status response, indicating completion or failure of the request. 
+* - A list of events the client has requested. See EventParameters for details.
+* - The complete audio buffer of the synthesized text.
+*/
+message UnarySynthesisResponse {
+  Status status = 1;   // A status response, indicating completion or failure of the request.
+  Events events = 2;   // A list of events. See EventParameters for details.
+  bytes audio = 3;     // Audio buffer of the synthesized text. 
+}
+
+/*
+Output message containing a status response, indicating completion or failure of a SynthesisRequest. Included in [SynthesisResponse](#synthesisresponse) and [UnarySynthesisResponse](#unarysynthesisresponse).
+*/
+message Status {
+  uint32 code = 1;    // HTTP-style return code: 200, 4xx, or 5xx as appropriate.
+  string message = 2; // Brief description of the status.
+  string details = 3; // Longer description if available.
+}
+
+/*
+Output message defining a container for a list of events. This container is needed because oneof does not allow repeated parameters in Protobuf. Included in [SynthesisResponse](#synthesisresponse) and [UnarySynthesisResponse](#unarysynthesisresponse).
+*/
+message Events {
+  repeated Event events = 1;      // Repeated. One or more events. 
+}
+
+/*
+Output message defining an event message.  Included in [Events](#events). See EventParameters for details.
+*/
+message Event {
+  string name = 1;                // Either "Markers" or the name of the event in the case of a Log Event.
+  map<string, string> values = 2; // Repeated. Key-value data relevant to the current event.
+}

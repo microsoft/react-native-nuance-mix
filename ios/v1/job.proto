@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package nuance.nlu.common.v1beta1;
+
+option java_multiple_files = true;
+option java_package = "com.nuance.rpc.nlu.common.v1beta1";
+option java_outer_classname = "JobProto";
+
+/*
+Job status update
+*/
+message JobStatusUpdate {
+    string job_id = 1; // Job ID.
+    nuance.nlu.common.v1beta1.JobStatus status = 2; // Job status.
+    repeated nuance.nlu.common.v1beta1.JobMessage messages = 3; // Repeated. Messages specifying about the job failure or completion.
+}
+
+/*
+Job Status Enum
+*/
+enum JobStatus {
+    JOB_STATUS_UNSPECIFIED = 0; // Job status not specified or unknown.
+    JOB_STATUS_QUEUED = 1; // Job is queued.
+    JOB_STATUS_PROCESSING = 2; // Job is processing.
+    JOB_STATUS_COMPLETE = 3; // Job is complete.
+    JOB_STATUS_FAILED = 4; // Job has failed.
+}
+
+/*
+Job Message
+*/
+message JobMessage {
+    int32 code = 1; // Code.
+    string message = 2; // Message.
+    map<string, string> data = 3; // Additional key/value pairs.
+}

@@ -1,0 +1,19 @@
+{
+	"language": "eng-USA",
+	"topic": "GEN",
+	"utterance_detection_mode": 1,
+	"result_type": 2,
+    "recognition_flags": {
+        "auto_punctuate": true,
+        "filter_profanity": false,
+        "include_tokenization": false,
+        "small_timers": true,
+        "discard_speaker_adaptation": false,
+        "suppress_call_recording": false,
+        "mask_load_failures": true
+    },
+	"no_input_timeout_ms": 1000,
+	"recognition_timeout_ms": 0,
+	"utterance_end_silence_ms": 900,
+	"max_hypotheses": 5
+}

@@ -1,0 +1,67 @@
+//  Copyright (C) 2020 - 2021 Nuance Communications, Inc. All Rights Reserved.
+//
+//  The copyright to the computer program(s) herein is the property of
+//  Nuance Communications, Inc. The program(s) may be used and/or copied
+//  only with the written permission from Nuance Communications, Inc.
+//  or in accordance with the terms and conditions stipulated in the
+//  agreement/contract under which the program(s) have been supplied.
+syntax = "proto3";
+package nuance.dlg.v1;
+
+import "google/api/annotations.proto";
+import "nuance/dlg/v1/dlg_messages.proto";
+
+option java_multiple_files = true;
+option java_package = "com.nuance.coretech.dialog.v1.service";
+
+service DialogService {
+	// Starts a conversation.
+	// Returns a **StartResponse** object.
+	rpc Start(StartRequest) returns (StartResponse) {
+		option (google.api.http) = {
+			post : "/dlg/v1/start/{payload.model_ref.uri}"
+			body: "*"
+		};
+	}
+
+	// Updates the state of a session without advancing the conversation.
+	//Returns a **UpdateResponse** object.
+	rpc Update(UpdateRequest) returns (UpdateResponse) {
+		option (google.api.http) = {
+			post : "/dlg/v1/update/{session_id}"
+			body: "*"
+		};
+	}
+
+	//Used to continuously interact with the conversation based on end user input or events.
+	//Returns an **ExecuteResponse** object that will contain data related to the dialog interactions and that can be 
+	//used by the client to interact with the end user.
+	rpc Execute(ExecuteRequest) returns (ExecuteResponse) {
+		option (google.api.http) = {
+			post : "/dlg/v1/execute/{session_id}"
+			body: "*"
+		};
+	}
+
+
+	//Performs recognition on streamed audio using ASRaaS and provides speech synthesis using TTSaaS.
+	rpc ExecuteStream(stream StreamInput) returns (stream StreamOutput) {
+	}
+
+	//Ends a conversation and performs cleanup.
+	//Returns a **StopResponse** object.
+	rpc Stop(StopRequest) returns (StopResponse) {
+		option (google.api.http) = {
+			post : "/dlg/v1/stop/{session_id}"
+		};
+	}
+
+	//Returns the status of a session. Returns grpc status 0 (OK) if found, 5 (NOT_FOUND) if no session was found
+	//Returns a **StatusResponse** object.
+	rpc Status(StatusRequest) returns (StatusResponse) {
+		option (google.api.http) = {
+			post : "/dlg/v1/status/{session_id}"
+			body: "*"
+		};
+	}
+}

@@ -1,0 +1,11 @@
+{
+      "xaas_urls": {
+         "asr": "asr.api.nuance.com:443",
+         "tts": "tts.api.nuance.com:443",
+         "nlu": "nlu.api.nuance.com:443",
+         "dlg": "dlg.api.nuance.com:443"
+    },
+    "client_id": "",
+    "client_secret": "",
+    "token_url": "https://auth.crt.nuance.com/oauth2/token"
+}

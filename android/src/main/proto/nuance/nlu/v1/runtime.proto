@@ -1,0 +1,145 @@
+/**
+ * This is one of five proto files that define the services and
+ * messages to request interpretation from NLU as a Service and return
+ * a result. Once you have compiled these files to interfaces or
+ * modules for you implementation language, you can call the resulting
+ * functions or methods from your client application.
+ */
+
+syntax = "proto3";
+
+package nuance.nlu.v1;
+
+import "nuance/nlu/v1/result.proto";
+import "google/api/annotations.proto";
+import "google/protobuf/any.proto";
+
+option java_multiple_files = true;
+option java_package = "com.nuance.grpc.nlu.v1";
+option java_outer_classname = "RuntimeProto";
+
+/**
+ * Interpretation service. Use the Interpret procedure to request an
+ * interpretation.
+ */
+service Runtime {
+    // Starts an interpretation request and returns a response.
+    rpc Interpret (InterpretRequest) returns (InterpretResponse) {
+        option (google.api.http) = {
+            post : "/nlu/v1/runtime/interpret"
+            body: "*"
+        };
+    }
+}
+
+/**
+ * The input to interpret, and parameters, model, extra resources, and
+ * client tags. Included in the [Nlu](#nlu) service.
+ */
+message InterpretRequest {
+    InterpretationParameters parameters = 1;       // Optional parameters for the interpretation.
+    ResourceReference model = 2;                   // Required semantic model to perform the interpretation.
+    repeated InterpretationResource resources = 3; // Repeated. Optional resources to customize the interpretation.
+    map<string, string> client_data = 4;           // Optional key-value pairs to log.
+    string user_id = 5;                            // Optional. Identifies a particular user within an application.
+    InterpretationInput input = 10;                // Required input to interpret.
+}
+
+/**
+ * Optional parameters controlling the interpretation. Included in
+ * [InterpretRequest](#interpretrequest).
+ */
+message InterpretationParameters {
+    EnumInterpretationResultType interpretation_result_type = 1; // Format of interpretation result. Default is SINGLE_INTENT.
+    EnumInterpretationInputLoggingMode interpretation_input_logging_mode = 2; // Format for input in the log. Default is PLAINTEXT.
+    map<string, string> post_processing_script_parameters = 3;   // Parameters to pass to custom post-processing ECMA scripts in the model.
+    uint32 max_interpretations = 12;                             // Maximum interpretations for the result. Default is 0 for the NLU server's configured setting.
+}
+
+/**
+ * Format of interpretations result.  Included in
+ * [InterpretationParameters](#interpretationparameters).
+ */
+enum EnumInterpretationResultType {
+    UNDEFINED = 0;     // Default. Same as SINGLE_INTENT.
+    SINGLE_INTENT = 1; // Always return a single-intent interpretation.
+    MULTI_INTENT = 2;  // Always return multi-intent interpretation.
+}
+
+/**
+ * Format for input in the diagnostic logs.  Included in
+ * [InterpretationParameters](#interpretationparameters).
+ */
+enum EnumInterpretationInputLoggingMode {
+    PLAINTEXT = 0;  // Default. Log the literal text of the input.
+    SUPPRESSED = 9; // Input is replaced with "value suppressed."
+}
+
+/**
+ * A resource to customize the interpretation. Included in
+ * [InterpretRequest](#interpretrequest).
+ */
+message InterpretationResource {
+    oneof resource_union {
+        ResourceReference external_reference = 1; // External resource.
+        string inline_wordset = 2;                // Inline wordset, in JSON.
+    }
+}
+
+/**
+ * Parameters to fetch an external resource. Included in
+ * [InterpretRequest](#interpretrequest) and
+ * [InterpretationResource](#interpretationresource).
+ */
+message ResourceReference {
+    EnumResourceType type = 1;       // Resource type.
+    string uri = 2;                  // Location or name of the resource.
+    uint32 request_timeout_ms = 7;   // Time, in ms, to wait for a response from the hosting server. Default is 0 for the NLU server's configured setting.
+    map<string, string> headers = 8; // Optional map of headers to transmit to the server hosting the resource.
+}
+
+/**
+ * Specifies a model, wordset, or a compiled wordset. Included in
+ * [ResourceReference](#resourcereference).  Use the default,
+ * UNDEFINED_RESOURCE_TYPE, to determine the type from the
+ * content-type header returned by the resource's server.
+ */
+enum EnumResourceType {
+    UNDEFINED_RESOURCE_TYPE = 0; // Default. Use the content-type header from the resource's server to determine the type.
+    SEMANTIC_MODEL = 1;          // A semantic model from Mix.nlu.
+    WORDSET = 2;                 // Currently unsupported. Use InterpretationResource - inline_wordset.
+    COMPILED_WORDSET = 3;        // A compiled wordset associated to a specific semantic model.
+}
+
+/**
+ * Input to interpret. Included in
+ * [InterpretRequest](#interpretrequest). Use either text or the
+ * [result](../../asr-grpc/v1/index.html#result) from ASR as a
+ * Service.
+ */
+message InterpretationInput {
+    oneof input_union {
+        string text = 1;                    // Text input.
+        google.protobuf.Any asr_result = 2; // Result from ASR as a Service.
+    }
+}
+
+/**
+ * The interpretation result. Included in the [Nlu](#nlu) service.
+ */
+message InterpretResponse {
+    Status status = 1;                              // Whether the request was successful. The 200 code means success, other values indicate an error.
+    InterpretResult result = 3;                     // The result of the interpretation.
+    map<string, google.protobuf.Any> metadata = 13; // Optional metadata attached to the response. For internal use only.
+}
+
+/**
+ * A Status message indicates whether the request was successful or
+ * reports errors that occurred during the request.  Included in
+ * [InterpretResponse](#interpretresponse).
+ */
+message Status {
+    uint32 code = 1;    // HTTP status code. The 200 code means success, other values indicate an error.
+    string message = 2; // Brief description of the status.
+    string details = 3; // Longer description if available.
+}

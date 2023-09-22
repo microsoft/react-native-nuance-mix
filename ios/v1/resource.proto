@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package nuance.nlu.common.v1beta1;
+
+option objc_class_prefix = "NLU";
+
+option java_multiple_files = true;
+option java_package = "com.nuance.rpc.nlu.common.v1beta1";
+option java_outer_classname = "ResourceProto";
+
+/*
+Input message for fetching an external resource.
+*/
+message ResourceReference {
+    string uri = 2; // Location of the resource as a URN reference.
+    map<string, string> headers = 8; // Field for internal use.
+}

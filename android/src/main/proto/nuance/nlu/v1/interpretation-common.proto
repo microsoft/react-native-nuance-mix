@@ -1,0 +1,48 @@
+/**
+ * This is one of five proto files that define the services and
+ * messages to request interpretation from NLU as a Service and return
+ * a result. This file defines text ranges, audio ranges, and
+ * interpretation origin.
+ */
+
+syntax = "proto3";
+
+package nuance.nlu.v1;
+
+option java_multiple_files = true;
+option java_package = "com.nuance.grpc.nlu.v1";
+option java_outer_classname = "InterpretationCommonProto";
+
+/**
+ * Range of text in the input literal. Included in
+ * [OperatorNode](#operatornode), [IntentNode](#intentnode),
+ * [EntityNode](#entitynode), and
+ * [SingleIntentEntity](#singleintententity).
+ */
+message TextRange {
+    uint32 start_index = 1; // Inclusive, 0-based character position.
+    uint32 end_index = 2;   // Exclusive, 0-based character position.
+}
+
+/**
+ * Range of time in the input audio. Included in
+ * [OperatorNode](#operatornode), [IntentNode](#intentnode),
+ * [EntityNode](#entitynode), and
+ * [SingleIntentEntity](#singleintententity).  Available only when
+ * interpreting a recognition result from ASR as a Service.
+ */
+message AudioRange {
+    uint32 start_time_ms = 1; // Inclusive start time in milliseconds.
+    uint32 end_time_ms = 2;   // Exclusive end time in milliseconds.
+}
+
+/**
+ * Origin of an intent or entity. Included in
+ * [IntentNode](#intentnode), [EntityNode](#entitynode), and
+ * [SingleIntentEntity](#singleintententity).
+ */
+enum EnumOrigin {
+    UNKNOWN = 0;
+    GRAMMAR = 1;     // Determined from an exact match with a grammar file in the model.
+    STATISTICAL = 2; // Determined statistically from the SSM file in the model.
+}

@@ -1,0 +1,102 @@
+/**
+ * This is one of five proto files that define the services and
+ * messages to request interpretation from NLU as a Service and return
+ * a result. This file defines the structure of a multi-intent
+ * interpretation.
+ */
+
+syntax = "proto3";
+
+package nuance.nlu.v1;
+
+import "nuance/nlu/v1/interpretation-common.proto";
+import "google/protobuf/struct.proto";
+import "google/protobuf/any.proto";
+
+option java_multiple_files = true;
+option java_package = "com.nuance.grpc.nlu.v1";
+option java_outer_classname = "MultiIntentInterpretationProto";
+
+/**
+ * Multi-intent interpretation. Contains a tree of nodes representing
+ * the detected operators, intents, and entities and their
+ * associations. Included in [Interpretation](#interpretation).
+ */
+message MultiIntentInterpretation {
+    InterpretationNode root = 1;                    // Root node of the interpretation tree. Can be either [OperatorNode](#operatornode) or [IntentNode](#intentnode).
+    map<string, google.protobuf.Any> metadata = 13; // Optional metadata attached to this interpretation. For internal use only.
+}
+
+/**
+ * Node in the interpretation tree. Included in
+ * [MultiIntentInterpretation](#multiintentinterpretation).
+ */
+message InterpretationNode {
+    oneof interpretation_node_union {
+        OperatorNode operator = 1; // The relationship of the intents or entities.
+        IntentNode intent = 2;     // The intents detected in the user input.
+        EntityNode entity = 3;     // The entities in the intent.
+    }
+}
+
+/**
+ * Logical operator node.  Included in [InterpretationNode](#interpretationnode).
+ */
+message OperatorNode {
+    EnumOperator operator = 1;                      // Type of operator.
+    TextRange text_range = 2;                       // Range of the literal text this operator applies to.
+    repeated InterpretationNode children = 5;       // Repeated. Child nodes for this operator. An operator node always has children.
+    string literal = 8;                             // The input literal associated with this operator.
+    bool sensitive = 9;                             // Indicates whether a child entity of this operator node has been flagged as sensitive.
+    string formatted_literal = 11;                  // The input formatted literal associated with this operator. When InterpretationInput is text, it's the same as literal.
+    TextRange formatted_text_range = 12;            // Range of the formatted literal text this operator applies to. When InterpretationInput is ASR result, it may be absent in misalignments cases.
+    map<string, google.protobuf.Any> metadata = 13; // Optional metadata attached to this node. For internal use only.
+    AudioRange audio_range = 15;                    // Range of audio input this operator applies to. Available only when interpreting a recognition result from ASR as a Service.
+}
+
+/**
+ * Logical operator type, AND, OR, or NOT. Included in [OperatorNode](#operatornode).
+ */
+enum EnumOperator {
+    AND = 0;  // The following item is an additional intent or entity.
+    OR = 1;   // The following item is an alternative intent or entity.
+    NOT = 2;  // The following item is not detected.
+}
+
+/**
+ * Node representing an intent. Included in [InterpretationNode](#interpretationnode).
+ */
+message IntentNode {
+    string name = 1;                                // Intent name as specified in the semantic model.
+    TextRange text_range = 2;                       // Range of literal text this intent applies to.
+    float confidence = 3;                           // Confidence score between 0.0 and 1.0 inclusive. The higher the score, the likelier the detected intent is correct.
+    EnumOrigin origin = 4;                          // How the intent was detected.
+    repeated InterpretationNode children = 5;       // Repeated. Child nodes for this intent. An intent node has zero or more child nodes.
+    string literal = 8;                             // The input literal associated with this intent.
+    bool sensitive = 9;                             // Indicates whether a child entity of this intent node has been flagged as sensitive.
+    string formatted_literal = 11;                  // The input formatted literal associated with this intent. When InterpretationInput is text, it's the same as literal.
+    TextRange formatted_text_range = 12;            // Range of the formatted literal text this intent applies to. When InterpretationInput is ASR, it may be absent in misalignments cases.
+    map<string, google.protobuf.Any> metadata = 13; // Optional metadata attached to this node. For internal use only.
+    AudioRange audio_range = 15;                    // Range of audio input this intent applies to. Available only when interpreting a recognition result from ASR as a Service.
+}
+
+/**
+ * Node representing an entity. Included in [InterpretationNode](#interpretationnode).
+ */
+message EntityNode {
+    string name = 1;                                // Entity name as specified in the semantic model.
+    TextRange text_range = 2;                       // Range of literal text this intent applies to.
+    float confidence = 3;                           // Confidence score between 0.0 and 1.0 inclusive. The higher the score, the likelier the detected entity is correct.
+    EnumOrigin origin = 4;                          // How the intent was detected.
+    repeated InterpretationNode children = 5;       // Repeated. Child nodes for this entity. A hierarchical entity node can have child entity and operator nodes. Entity nodes currently never have intent nodes as children.
+    oneof value_union {
+        string string_value = 6;                    // The value of the entity as specified in the semantic model.
+        google.protobuf.Struct struct_value = 7;    // Structured data, ready to convert to a JSON representation.
+    }
+    string literal = 8;                             // The input literal associated with this entity.
+    bool sensitive = 9;                             // Indicates whether a child entity of this operator node has been flagged as sensitive.
+    string formatted_literal = 11;                  // The input formatted literal associated with this entity.
+    TextRange formatted_text_range = 12;            // Range of the formatted literal text this entity applies to. When InterpretationInput is ASR, it may be absent in misalignments cases.
+    map<string, google.protobuf.Any> metadata = 13; // Optional metadata attached to this node. For internal use only.
+    AudioRange audio_range = 15;                    // Range of audio input this entity applies to. Available only when interpreting a recognition result from ASR as a Service.
+}

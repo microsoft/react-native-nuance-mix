@@ -1,0 +1,28 @@
+{
+    "voice": {
+      "name": "Zoe-Sc",
+      "model": "enhanced",
+      "language": "en-US"
+    },
+    "audio_params": {
+      "audio_format": {
+        "AudioFormat": {
+          "Pcm": {
+            "sample_rate_hz": 22050
+          }
+        }
+      },
+      "volumePercentage": 80,
+      "audioChunkDurationMs": 60
+    },
+    "input": {
+      "type": "text/plain;charset=utf-8",
+      "InputData": {
+        "Body": "This is a test of speech synthesis from Nuance Communications."
+      }
+    },
+    "event_params": {
+      "send_sentence_marker_events": false,
+      "send_word_marker_events": false
+    }
+}

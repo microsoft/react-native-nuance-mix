@@ -1,0 +1,58 @@
+/**
+ * This is one of five proto files that define the services and
+ * messages to request interpretation from NLU as a Service and return
+ * a result. This file defines the result returned by NLU as a
+ * Service.
+ */
+
+syntax = "proto3";
+
+package nuance.nlu.v1;
+
+import "nuance/nlu/v1/single-intent-interpretation.proto";
+import "nuance/nlu/v1/multi-intent-interpretation.proto";
+
+option java_multiple_files = true;
+option java_package = "com.nuance.grpc.nlu.v1";
+option java_outer_classname = "ResultProto";
+
+/**
+ * Result of interpretation. Contains the input literal and one or
+ * more interpretations. Included in
+ * [InterpretResponse](#interpretresponse).
+ */
+message InterpretResult {
+    string literal = 1;                          // Literal used for interpretation. For text, this is always the raw input text. For ASR as a Service results, a concatenation of the audio tokens, separated by spaces.
+    repeated Interpretation interpretations = 2; // Repeated. Candidate interpretations of the original input.
+    bool sensitive = 3;                          // Indicates whether the literal contains entities flagged as sensitive.
+    string formatted_literal = 11;               // When InterpretationInput is ASR result, it's the ASR formatted text. When InterpretationInput is text, this is mirroring literal.
+}
+
+/**
+ * Candidate interpretation of the input. Included in
+ * [InterpretResult](#interpretresult).
+ *
+ * The type of interpretation is either single- or multi-intent. When
+ * requesting an interpretation, use interpretation_result_type in
+ * [InterpretationParameters](#interpretationparameters) to specify the
+ * desired type.
+ *
+ * When requesting a multi-intent interpretation with a single-intent
+ * semantic model, the root of the multi-intent interpretation object
+ * contains the intent.
+ *
+ * When requesting a single-intent interpretation and the result
+ * contains multiple intents, NLU as a Service converts the result to
+ * a single-intent interpretation. It does this by returning the
+ * breadth-first child of the root of the multi-intent
+ * interpretation. For example, if the multi-intent interpretation's
+ * root is an AND operator with a child intent PayBill then a child
+ * intent GetBalance, NLU as a Service returns a single-intent
+ * interpretation for only the PayBill intent.
+ */
+message Interpretation {
+    oneof interpretation_union {
+        SingleIntentInterpretation single_intent_interpretation = 1; // The result contains one intent.
+        MultiIntentInterpretation multi_intent_interpretation = 2;   // The result contains multiple intents. This choice requires a multi-intent semantic model, which is not currently supported in Nuance-hosted NLUaaS.
+    }
+}

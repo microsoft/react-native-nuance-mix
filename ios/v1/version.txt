@@ -1,0 +1,4 @@
+Nuance Dialog as a Service gRPC proto files
+Nuance Communications, Inc.
+July 30, 2021
+Protocol version v1

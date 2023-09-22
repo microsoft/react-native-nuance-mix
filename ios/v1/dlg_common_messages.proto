@@ -1,0 +1,322 @@
+//  Copyright (C) 2020 - 2021 Nuance Communications, Inc. All Rights Reserved.
+//
+//  The copyright to the computer program(s) herein is the property of
+//  Nuance Communications, Inc. The program(s) may be used and/or copied
+//  only with the written permission from Nuance Communications, Inc.
+//  or in accordance with the terms and conditions stipulated in the
+//  agreement/contract under which the program(s) have been supplied.
+syntax = "proto3";
+package nuance.dlg.v1.common;
+
+option objc_class_prefix = "DLG";
+
+option java_multiple_files = true;
+option java_package = "com.nuance.coretech.dialog.v1.common.messages";
+
+import "google/protobuf/struct.proto";
+import "result.proto";
+
+// Payload sent with the Start request.
+message StartRequestPayload {
+  ResourceReference model_ref = 1; //Reference object of the resource to use for the request.
+  google.protobuf.Struct data = 2; //Map of data sent in the request.
+  bool suppress_log_user_data = 3; //Set to true to disable logging for ASR, NLU, TTS, and Dialog.
+}
+
+//Reference object of the resource to use for the request (for example, URN or URL of the model)
+message ResourceReference{
+  string uri = 1; // Reference (for example, the URL or URN).
+  EnumResourceType type = 2; // Type of resource.
+  enum EnumResourceType{
+    APPLICATION_MODEL = 0; // Dialog application model. 
+  }
+}
+
+// Payload returned after the Start method is called. If a session ID is not provided in the request, a new one is generated and should be used for subsequent calls.
+message StartResponsePayload {
+  string session_id = 1; // Returns session ID to use for subsequent calls.
+}
+
+// Payload sent with the Update request.
+message UpdateRequestPayload {
+  google.protobuf.Struct data = 1; //Map of key-value pairs of session variables to update.
+}
+
+//------------------------------------------------------------------------
+
+// Payload sent with the Execute request. If both an event and a user input are provided, the event has precedence. For example, if
+// an error event is provided, the input will be ignored.
+message ExecuteRequestPayload {
+  UserInput user_input = 1; // Input provided to the Dialog engine.
+  DialogEvent dialog_event = 2; //Used to pass in events that can drive the flow. Optional; if an event is not passed, the operation is assumed to be successful. //TODO: Should this be seperated to be QA Node specific
+  RequestData requested_data = 3; //Data that was previously requested by engine.
+}
+
+// Provides input to the Dialog engine. The client application sends either the text collected from the user, to be interpreted by Mix, or
+// an interpretation that was performed externally.
+message UserInput {
+  oneof input {
+    string user_text = 1; // Text collected from end user.
+    Interpretation interpretation = 2; // Interpretation that was done externally (e.g., Nuance Recognizer for VoiceXML). This can be used for simple interpretations that include entities with string values only. Use nluaas_interpretation for interpretations that include complex entities.
+    Selectable.SelectableItem.SelectedValue selected_item = 3; // Value of element selected by end user.
+    nuance.nlu.v1.InterpretResult nluaas_interpretation = 4; // Interpretation that was done externally (e.g., Nuance Recognizer for VoiceXML), provided in the NLUaaS format.
+  }
+  string input_mode = 20; // Optional: Input mode. Used for reporting. Current values are dtmf/voice. Applies to user_text and nluaas_interpretation input only.
+
+  // Sends interpretation data.
+  message Interpretation {
+    float confidence = 1; //Required: Value from 0..1 that indicates the confidence of the interpretation.
+    string input_mode = 2; //Optional: Input mode. Current values are dtmf/voice (but input mode not limited to these).
+    string utterance = 3; //Raw collected text.
+    map<string,string> data = 4; //Data from the interpretation of intents and entities. For example, INTENT:BILL_PAY or or AMOUNT:100.
+    map<string,string> slot_literals = 5; // Slot literals from the interpretation of the entities. The slot literal provides the exact words used by the user. For example, AMOUNT: One hundred dollars.
+    map<string,string> slot_formatted_literals = 8; // Slot formatted literals from the interpretation of the entities.
+    repeated Interpretation alternative_interpretations = 6; //Alternative interpretations possible from the interaction, that is, n-best list.
+    map<string, float> slot_confidences = 7; //Slot confidence values from the interpretation of the entities. 
+  }
+}
+
+// Data that was requested by the dialog application.
+message RequestData {
+  string id = 1; //ID used by the dialog application to identify which node requested the data.
+  google.protobuf.Struct data = 2; //Map of keys to json objects of the data requested.
+}
+
+//------------------------------------------------------------------------
+
+// Payload returned after the Execute method is called.
+// Specifies the action to be performed by the client application. 
+message ExecuteResponsePayload {
+  repeated Message messages = 1; // Message action to be performed by the client application. 
+  oneof action {
+    QAAction qa_action = 2; // Question and Answer action to be performed by the client application.
+    DAAction da_action = 3; // Data Access action to be performed by the client application.
+    EscalationAction escalation_action = 4; // Escalation action to be performed by the client application.
+    EndAction end_action = 5; // End action to be performed by the client application.
+    ContinueAction continue_action = 6; // Continue action to be performed by the client application.
+  }
+}
+
+// Specifies the message to be played to the user.
+message Message {
+  repeated Nlg nlg = 1; // Text to be played using Text-to-speech.
+  repeated Visual visual = 2; // Text to be displayed to the user (for example, in a chat).
+  repeated Audio audio = 3; // Prompt to be played from an audio file.
+  View view = 4; // View details for this message.
+  string language = 5; // Message language in xx-XX format, e.g. en-US
+  TTSParameters tts_parameters = 6;
+
+  message Nlg {
+    string text = 1; // Text to be played using Text-to-speech.
+    bool mask = 2; // When set to true, indicates that the text contains sensitive data that will be masked in logs.
+    bool barge_in_disabled = 3; // When set to true, indicates that barge-in is disabled.
+  }
+
+  message Visual {
+    string text = 1; // Text to be displayed to the user (for example, in a chat).
+    bool mask = 2; // When set to true, indicates that the text contains sensitive data that will be masked in logs.
+    bool barge_in_disabled = 3; // When set to true, indicates that barge-in is disabled.
+  }
+
+  message Audio {
+    string text = 1; // Text of the prompt to be played.
+    oneof AudioSrc {
+      string uri = 2; // Uri to the audio file.
+    }
+    bool mask = 3; // When set to true, indicates that the text or audio contains sensitive data that will be masked in logs.
+    bool barge_in_disabled = 4; // When set to true, indicates that barge-in is disabled.
+  }
+
+  message TTSParameters {
+    Voice voice = 1;
+    message Voice {
+        string name = 1; // The voice's name, e.g. 'Evan'. Mandatory for SynthesizeRequest.
+        string model = 2; // The voice's quality model, e.g. 'xpremium' or 'xpremium-high'. Mandatory for SynthesizeRequest.
+        enum EnumGender {
+            ANY = 0; // Any gender voice. Default for SynthesisRequest. 
+            MALE = 1; // Male voice.
+            FEMALE = 2; // Female voice.
+            NEUTRAL = 3; // Neutral gender voice. 
+        }
+        EnumGender gender = 3; // Voice gender. Default ANY for SynthesisRequest.
+        string language = 4; // Voice language
+    }
+  }
+}
+
+// Specifies view details for this action. 
+message View {
+  string id = 1; // Class or CSS defined for the view details in the node.
+  string name = 2; // Type defined for the view details in the node.
+}
+
+// Interactive elements to be displayed by the client app, such as clickable buttons or links. 
+message Selectable{
+  repeated SelectableItem selectable_items = 1; // Ordered list of interactive elements. 
+
+  message SelectableItem{
+    SelectedValue value = 1; // Key-value pair of entity information (name and value) for the interactive element. A selected key-value pair is passed in an ExecuteRequest when the user interacts with the element.
+    string description = 2; // Description of the interactive element.
+    string display_text = 3;  // Label to display for this interactive element.
+    string display_image_uri = 4; // URI of image to display for this interactive element.
+
+    message SelectedValue{
+      string id = 1; // Name of the entity being collected.
+      string value = 2; // Entity value corresponding to the interactive element.
+    }
+  }
+}
+
+// Configuration information to be used during recognition.
+message RecognitionSettings{ 
+  repeated DtmfMapping dtmf_mappings = 1; //DTMF mappings configured in Mix.dialog. 
+  CollectionSettings collection_settings = 2; //Collection settings configured in Mix.dialog. 
+  SpeechSettings speech_settings = 3; //Speech settings configured in Mix.dialog. 
+  DtmfSettings dtmf_settings = 4; //DTMF settings configured in Mix.dialog.
+
+// DTMF mappings configured in Mix.dialog.
+  message DtmfMapping{
+    string id = 1; //ID of the entity to which the DTMF mapping applies.
+    string value = 2; //Entity value to map to a DTMF key.
+    string dtmf_key = 3; //DTMF key associated with this entity value. (0-9,*,#)
+  }
+
+// Collection settings configured in Mix.dialog.
+  message CollectionSettings{
+    string timeout = 1; //Time, in ms, to wait for speech once a prompt has finished playing before throwing a NO_INPUT event. 
+    string complete_timeout = 2;//Duration of silence, in ms, to determine the user has finished speaking. The timer starts when the recognizer has a well-formed hypothesis.
+    string incomplete_timeout = 3;//Duration of silence, in ms, to determine the user has finished speaking. The timer starts when the user stops speaking.
+    string max_speech_timeout = 4;//Maximum duration, in ms, of an utterance collected from the user.
+  }
+
+//Speech settings configured in Mix.dialog.
+  message SpeechSettings{
+    string sensitivity = 1;//Level of sensitivity to speech. 1.0 means highly sensitive to quiet input, while 0.0 means least sensitive to noise.
+    string barge_in_type = 2;//Barge-in type; possible values: "speech" (interrupt a prompt by using any word) and "hotword" (interrupt a prompt by using a specific hotword).
+    string speed_vs_accuracy = 3;//Desired balance betweemrn speed and accuracy. 0.0 means fastest recognition, while 1.0 means best accuracy.
+
+  }
+
+ //DTMF settings configured in Mix.dialog.
+  message DtmfSettings{
+    string inter_digit_timeout = 1;//Maximum time, in ms, allowed between each DTMF character entered by the user.
+    string term_timeout = 2;//Maximum time, in ms, to wait for an additional DTMF character before terminating the input.
+    string term_char = 3;//Character that terminates a DTMF input.
+
+  }
+}
+
+//Settings to be used with messages returned by DAAction or ContinueAction
+message MessageSettings {
+  string delay = 1; //Time in ms to wait before presenting user with message;
+  string minimum = 2; //Time in ms to display/play message to user.
+}
+
+//Settings configured in Mix tooling controlling the connection to the custom backend 
+ message BackendConnectionSettings {
+  string fetch_timeout = 1; // Number of milliseconds allowed for fetching the data before timing out.
+  string connect_timeout = 2; //Connect timeout in milliseconds.
+ }
+
+
+// Question and Answer action to be performed by the client application.
+message QAAction {
+  Message message = 1; // Message to be played as part of the Q&A action. 
+  google.protobuf.Struct data = 2;  // Map of data exchanged in this node. 
+  View view = 3; // View details for this action.
+  Selectable selectable = 4; // Interactive elements to be displayed by the client app, such as clickable buttons or links.
+  RecognitionSettings recognition_settings = 5; //Configuration information to be used during recognition.
+  bool mask = 6; // When set to true, indicates that the Question and Answer node is meant to collect an entity that will hold sensitive data to be masked in logs.
+}
+
+// Data Access action to be performed by the client application.
+message DAAction {
+  string id = 1; // ID identifying the Data Access node in the dialog application.
+  Message message = 2; // Message to be played as part of the Data Access action.
+  View view = 3; // View details for this action.
+  google.protobuf.Struct data = 4;  // Map of data exchanged in this node. 
+  MessageSettings message_settings = 5; //Settings to be used along with messages returned to present user with the messages. 
+}
+
+
+// Escalation action to be performed by the client application.
+message EscalationAction {
+  Message message = 1; // Message to be played as part of the escalation action.
+  View view = 2; // View details for this action.
+  google.protobuf.Struct data = 3;  // Map of data exchanged in this node.
+  string id = 4; // ID identifying the External Action node in the dialog application.
+}
+
+// End node, indicates that the dialog has ended.
+message EndAction {
+  google.protobuf.Struct data = 1;  // Map of data exchanged in this node.
+  string id = 2; // ID identifying the End Action node in the dialog application.
+}
+
+// Continue action to be performed by the client application.
+message ContinueAction {
+  Message message = 1; // Message to be played as part of the continue action.
+  View view = 2; // View details for this action.
+  google.protobuf.Struct data = 3;  // Map of data exchanged in this node.
+  string id = 4; // ID identifying the Continue Action node in the dialog application.
+  MessageSettings message_settings = 5; //Settings to be used along with messages returned to present user with the messages. 
+  BackendConnectionSettings backend_connection_settings = 6; //Setting that will be used by platform for connecting and fetching from the backend. Only returned when continue action proceeds a backend/DA node.
+}
+
+//------------------------------------------------------------------------
+
+message VxmlConfiguration {
+  repeated VxmlResourceReference resources = 1; //Contains references to external resources like NLU/ASR models
+  map<string,string> properties = 2; //Settings related to things like recognition/etc.
+}
+
+message VxmlResourceReference{
+  oneof resource_union {
+    GrammarResourceReference grammar_reference = 1;
+    string wordset_json = 2;
+  }
+
+  //Reference object of the resource to use for the request (for example, URN or URL of the model)
+  message GrammarResourceReference{
+    string uri = 1; // Reference (for example, the URL or URN).
+    EnumResourceType type = 2; // Type of resource.
+    enum EnumResourceType{
+      SEMANTIC_MODEL = 0; //A semantic model from Mix.nlu
+      SPEECH_GRAMMAR = 1; //SRGS Grammar for speech(xml/gram/etc)
+      DTMF_GRAMMAR = 2; //SRGS Grammar for dtmf(xml/gram/etc)
+      ASR_DLM = 3;
+    }
+  }
+}
+
+//------------------------------------------------------------------------
+
+
+
+/**
+ * @exclude
+ */
+
+//Message used to indicate an event that occurred during the dialog interactions.
+message DialogEvent {
+  //The possible event types that can occur on the client side of interactions.
+  enum  EventType {
+    SUCCESS = 0; //Everything went as expected.
+    ERROR = 1; //An unexpected problem occurred.
+    NO_INPUT = 2; //End user has not provided any input.
+    NO_MATCH = 3; //End user provided unrecognizable input.
+    HANGUP = 4; //End user has hung up. Currently used for UVR interactions.
+    CUSTOM = 5; //Custom event, expect event_name to be set
+  }
+
+  EventType type = 1; // Type of event being triggered.
+  string message = 2; //Optional message providing additional information about the event.
+  string event_name = 3; //Only used when type is set to CUSTOM
+}
+
+// Provides channel and language used for the conversation.
+message Selector {
+  string channel = 1; //Optional: Channel that this conversation is going to use (for example, WebVA).
+  string language = 2; //Optional: Language to use for this conversation.
+  string library = 3; //Optional: Library to use for this conversation. Advanced customization reserved for future use.
+}
