@@ -2,6 +2,13 @@
 
 A react-native node module plugin for Android and iOS providing access to Nuance Mix as a service. Head on over to [Mix](https://mix.nuance.com/v3/landing/) and signup for a free account there. You'll need to add your Mix credentials to your mobile app. You can see an [example](https://github.com/ms-cleblanc/NuanceMixReactNativeDemo) project with more details.
 
+<img width="126" alt="image" src="https://github.com/microsoft/react-native-nuance-mix/assets/131894429/ed354850-9273-4e31-9e47-94b793948fd2">
+
+<img width="126" alt="image" src="https://github.com/microsoft/react-native-nuance-mix/assets/131894429/3fc8cb97-eb62-447c-b864-6928499815b8">
+
+<img width="124" alt="image" src="https://github.com/microsoft/react-native-nuance-mix/assets/131894429/4a15bfab-eb99-4fe8-974f-22d8501a21f8">
+
+
 ## Installation
 
 You can create your own react-native application using a <i>stable</i> version of react-native `npx react-native init AwesomeProject --version 0.68.2`. For complete documentation on react-native see https://reactnative.dev/docs/getting-started. As of now this NuanceMix NPM is only available as a local plugin, it's on our radar to provide this software through the Node Package Manager NPM.
