@@ -1,6 +1,7 @@
 {
   "name": "nuance-xaas",
   "version": "0.1.0",
+  "author": "Chris LeBlanc <chrisleblanc@microsoft.com>",
   "description": "These are react-native components for Android and iOS which help users run Nuance Automatic Speech Recognition (ASR), Text to Speech (TTS), and Conversational Dialog with Natural Language Understanding (NLU). It's a very easy way for users to add Speech to Text, TTS, and Dialog (ChatBot).",
   "main": "lib/commonjs/index",
   "module": "lib/module/index",
